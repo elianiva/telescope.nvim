@@ -205,6 +205,11 @@ files.file_browser = function(opts)
     opts.cwd = path
     local data = {}
 
+    if not vim.loop.fs_access(path, "X") then
+      print("You don't have access to this directory")
+      return nil
+    end
+
     scan.scan_dir(path, {
       hidden = opts.hidden or false,
       add_dirs = true,
@@ -236,12 +241,22 @@ files.file_browser = function(opts)
     sorter = conf.file_sorter(opts),
     attach_mappings = function(prompt_bufnr, map)
       action_set.select:replace_if(function()
-        return action_state.get_selected_entry().path:sub(-1) == os_sep
+        if action_state.get_selected_entry().path:sub(-1) == os_sep then
+          return true
+        end
+
+        local stat = vim.loop.fs_stat(action_state.get_selected_entry().path)
+        if stat then
+          return stat.type == 'directory'
+        end
+
+        return false
       end, function()
-        local new_cwd = vim.fn.expand(action_state.get_selected_entry().path:sub(1, -2))
+        local new_cwd = vim.loop.fs_realpath(action_state.get_selected_entry().path)
         local current_picker = action_state.get_current_picker(prompt_bufnr)
         current_picker.cwd = new_cwd
-        current_picker:refresh(gen_new_finder(new_cwd), { reset_prompt = true })
+        local new_finder = gen_new_finder(new_cwd)
+        if new_finder then current_picker:refresh(new_finder, { reset_prompt = true }) end
       end)
 
       local create_new_file = function()
@@ -261,8 +276,9 @@ files.file_browser = function(opts)
           Path:new(fpath):touch({ parents = true })
           vim.cmd(string.format(':e %s', fpath))
         else
+          -- TODO(conni2461): I think when doing realpath we don't have to worry about :sub(1, -2) anymore
           Path:new(fpath:sub(1, -2)):mkdir({ parents = true })
-          local new_cwd = vim.fn.expand(fpath)
+          local new_cwd = vim.loop.fs_realpath(fpath)
           current_picker.cwd = new_cwd
           current_picker:refresh(gen_new_finder(new_cwd), { reset_prompt = true })
         end
