@@ -237,7 +237,7 @@ files.file_browser = function(opts)
 
   pickers.new(opts, {
     prompt_title = 'Find Files',
-    finder = gen_new_finder({ path = opts.cwd }),
+    finder = gen_new_finder({ path = opts.cwd, hidden = opts.hidden }),
     previewer = conf.file_previewer(opts),
     sorter = conf.file_sorter(opts),
     attach_mappings = function(prompt_bufnr, map)
